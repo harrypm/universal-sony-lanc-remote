@@ -594,6 +594,39 @@ Validation commands:
 - `ruby -e 'require "yaml"; YAML.load_file("/home/harry/LANC-USB-GUI/.github/workflows/build.yml"); puts "YAML_OK"'`
   - Result: `YAML_OK`.
 
+### CI follow-up pass: Windows EXE failure + missing architecture targets
+
+User reports:
+- \"windows exe failed\"
+- \"there is also arm builds missing for arm for linux/win and x86 missing for macos\"
+
+Investigation:
+- Checked workflow run `28710786338` and identified Windows job failure in:
+  - `Windows self-contained EXE (x86_64) -> Resolve build version`
+- Fetched failed log:
+  - job `85143888470`
+  - step exits with code 1 while evaluating version fallback path using `git describe`.
+
+Fixes applied in `.github/workflows/build.yml`:
+- Windows version resolution hardening:
+  - initialize `$version = $null`
+  - after `git describe`, explicitly handle non-zero `$LASTEXITCODE` and fallback to `dev-<sha>`.
+- Added missing architecture jobs:
+  - `linux-binary-arm` on `ubuntu-22.04-arm`, artifact `linux_SonyLANCRemote_*_arm64.zip`
+  - `windows-exe-arm` on `windows-11-arm`, artifact `windows_SonyLANCRemote_*_arm64.zip`
+  - `macos-app-x86` on `macos-15-intel`, artifact `macos_SonyLANCRemote_*_x86.zip`
+- Updated release aggregation:
+  - `needs` now includes all new arch jobs.
+  - release asset globs now include linux/windows arm64 and macOS x86 ZIPs.
+
+Validation:
+- `ruby -e 'require "yaml"; YAML.load_file("/home/harry/LANC-USB-GUI/.github/workflows/build.yml"); puts "YAML_OK"'`
+  - Result: `YAML_OK`.
+- `QT_QPA_PLATFORM=offscreen python3 /home/harry/LANC-USB-GUI/GUI_PyQt6/test_headless.py`
+  - Result: `RESULT: ALL CHECKS PASSED`.
+- `git --no-pager -C /home/harry/LANC-USB-GUI diff -- .github/workflows/build.yml`
+  - Result: contains only the Windows version-step hardening + added arch jobs + release wiring.
+
 ### CI fix pass: GitHub Actions preflight headless tests failing
 
 User report:

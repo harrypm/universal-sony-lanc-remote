@@ -120,6 +120,68 @@ jobs:
           path: linux_SonyLANCRemote_*_x86.zip
           if-no-files-found: error
 
+  linux-binary-arm:
+    name: Linux self-contained binary (arm64)
+    runs-on: ubuntu-22.04-arm
+    needs:
+      - preflight-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install Linux Qt runtime libraries
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0
+
+      - name: Resolve build version
+        id: version
+        run: |
+          set -eux
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.release_tag }}" ]]; then
+            VERSION="${{ github.event.inputs.release_tag }}"
+          else
+            VERSION="$(git describe --tags --dirty --match 'v*' 2>/dev/null || true)"
+            if [[ -z "$VERSION" ]]; then
+              VERSION="dev-${GITHUB_SHA::7}"
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: |
+          set -eux
+          python -m pip install --upgrade pip
+          python -m pip install -r GUI_PyQt6/requirements.txt pyinstaller
+
+      - name: Build Linux binary (PyInstaller onefile)
+        run: |
+          set -eux
+          cd GUI_PyQt6
+          pyinstaller --noconfirm --clean --onefile --windowed --name "$APP_NAME" --add-data "assets/lanc_remote.png:assets" sony_lanc_remote.py
+          test -f "dist/$APP_NAME"
+
+      - name: Package Linux ZIP
+        run: |
+          set -eux
+          ZIP_NAME="linux_SonyLANCRemote_${{ steps.version.outputs.version }}_arm64.zip"
+          zip -j "$ZIP_NAME" "GUI_PyQt6/dist/$APP_NAME"
+          test -f "$ZIP_NAME"
+
+      - name: Upload Linux ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-binary-arm
+          path: linux_SonyLANCRemote_*_arm64.zip
+          if-no-files-found: error
+
   windows-exe:
     name: Windows self-contained EXE (x86_64)
     runs-on: windows-2022
@@ -138,12 +200,16 @@ jobs:
         id: version
         shell: pwsh
         run: |
+          $version = $null
           if ("${env:GITHUB_REF}" -like "refs/tags/*") {
             $version = "${env:GITHUB_REF}".Substring("refs/tags/".Length)
           } elseif ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.release_tag }}") {
             $version = "${{ github.event.inputs.release_tag }}"
           } else {
             $version = (git describe --tags --dirty --match "v*" 2>$null)
+            if ($LASTEXITCODE -ne 0) {
+              $version = $null
+            }
             if (-not $version) {
               $version = "dev-$($env:GITHUB_SHA.Substring(0,7))"
             }
@@ -177,6 +243,70 @@ jobs:
         with:
           name: windows-exe
           path: windows_SonyLANCRemote_*_x86.zip
+          if-no-files-found: error
+
+  windows-exe-arm:
+    name: Windows self-contained EXE (arm64)
+    runs-on: windows-11-arm
+    needs:
+      - preflight-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          architecture: 'arm64'
+
+      - name: Resolve build version
+        id: version
+        shell: pwsh
+        run: |
+          $version = $null
+          if ("${env:GITHUB_REF}" -like "refs/tags/*") {
+            $version = "${env:GITHUB_REF}".Substring("refs/tags/".Length)
+          } elseif ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.release_tag }}") {
+            $version = "${{ github.event.inputs.release_tag }}"
+          } else {
+            $version = (git describe --tags --dirty --match "v*" 2>$null)
+            if ($LASTEXITCODE -ne 0) {
+              $version = $null
+            }
+            if (-not $version) {
+              $version = "dev-$($env:GITHUB_SHA.Substring(0,7))"
+            }
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r GUI_PyQt6/requirements.txt pyinstaller
+
+      - name: Build Windows EXE (PyInstaller onefile)
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          pyinstaller --noconfirm --clean --onefile --windowed --name "$env:APP_NAME" --icon GUI_PyQt6/assets/lanc_remote.ico --add-data "GUI_PyQt6/assets/lanc_remote.png;assets" GUI_PyQt6/sony_lanc_remote.py
+          if (-not (Test-Path "dist/$env:APP_NAME.exe")) {
+            throw "Expected dist/$env:APP_NAME.exe"
+          }
+
+      - name: Package Windows ZIP
+        shell: pwsh
+        run: |
+          $zipPath = "windows_SonyLANCRemote_${{ steps.version.outputs.version }}_arm64.zip"
+          Compress-Archive -Path @("dist/$env:APP_NAME.exe") -DestinationPath $zipPath -Force
+          if (-not (Test-Path $zipPath)) { throw "ZIP not created: $zipPath" }
+
+      - name: Upload Windows ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-exe-arm
+          path: windows_SonyLANCRemote_*_arm64.zip
           if-no-files-found: error
 
   macos-app:
@@ -236,13 +366,73 @@ jobs:
           path: macos_SonyLANCRemote_*_arm64.zip
           if-no-files-found: error
 
+  macos-app-x86:
+    name: macOS self-contained app bundle (x86_64)
+    runs-on: macos-15-intel
+    needs:
+      - preflight-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Resolve build version
+        id: version
+        run: |
+          set -eux
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.release_tag }}" ]]; then
+            VERSION="${{ github.event.inputs.release_tag }}"
+          else
+            VERSION="$(git describe --tags --dirty --match 'v*' 2>/dev/null || true)"
+            if [[ -z "$VERSION" ]]; then
+              VERSION="dev-${GITHUB_SHA::7}"
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: |
+          set -eux
+          python -m pip install --upgrade pip
+          python -m pip install -r GUI_PyQt6/requirements.txt pyinstaller
+
+      - name: Build macOS app bundle (PyInstaller onedir)
+        run: |
+          set -eux
+          cd GUI_PyQt6
+          pyinstaller --noconfirm --clean --windowed --onedir --name "$APP_NAME" --icon assets/lanc_remote.icns --add-data "assets/lanc_remote.png:assets" sony_lanc_remote.py
+          test -d "dist/$APP_NAME.app"
+
+      - name: Package macOS ZIP
+        run: |
+          set -eux
+          ZIP_NAME="macos_SonyLANCRemote_${{ steps.version.outputs.version }}_x86.zip"
+          ditto -c -k --sequesterRsrc --keepParent "GUI_PyQt6/dist/$APP_NAME.app" "$ZIP_NAME"
+          test -f "$ZIP_NAME"
+
+      - name: Upload macOS ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-app-x86
+          path: macos_SonyLANCRemote_*_x86.zip
+          if-no-files-found: error
+
   release:
     name: Publish release assets
     runs-on: ubuntu-24.04
     needs:
       - linux-binary
+      - linux-binary-arm
       - windows-exe
+      - windows-exe-arm
       - macos-app
+      - macos-app-x86
     if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
     permissions:
       contents: write
@@ -286,5 +476,8 @@ jobs:
           generate_release_notes: true
           files: |
             release-assets/**/linux_SonyLANCRemote_*_x86.zip
+            release-assets/**/linux_SonyLANCRemote_*_arm64.zip
             release-assets/**/windows_SonyLANCRemote_*_x86.zip
+            release-assets/**/windows_SonyLANCRemote_*_arm64.zip
             release-assets/**/macos_SonyLANCRemote_*_arm64.zip
+            release-assets/**/macos_SonyLANCRemote_*_x86.zip

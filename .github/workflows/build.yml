@@ -200,6 +200,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
           $version = $null
           if ("${env:GITHUB_REF}" -like "refs/tags/*") {
             $version = "${env:GITHUB_REF}".Substring("refs/tags/".Length)
@@ -264,6 +265,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $false
           $version = $null
           if ("${env:GITHUB_REF}" -like "refs/tags/*") {
             $version = "${env:GITHUB_REF}".Substring("refs/tags/".Length)

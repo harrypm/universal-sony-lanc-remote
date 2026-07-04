@@ -611,6 +611,7 @@ Fixes applied in `.github/workflows/build.yml`:
 - Windows version resolution hardening:
   - initialize `$version = $null`
   - after `git describe`, explicitly handle non-zero `$LASTEXITCODE` and fallback to `dev-<sha>`.
+  - explicitly set `$PSNativeCommandUseErrorActionPreference = $false` in both Windows resolve-version steps so `git describe` non-zero does not terminate the step before fallback logic runs.
 - Added missing architecture jobs:
   - `linux-binary-arm` on `ubuntu-22.04-arm`, artifact `linux_SonyLANCRemote_*_arm64.zip`
   - `windows-exe-arm` on `windows-11-arm`, artifact `windows_SonyLANCRemote_*_arm64.zip`

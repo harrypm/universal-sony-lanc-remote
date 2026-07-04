@@ -1,0 +1,280 @@
+name: Build and release binary
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create a GitHub release and upload built assets"
+        required: false
+        type: boolean
+        default: false
+      release_tag:
+        description: "Tag to release when manually dispatched (example: v0.1.0)"
+        required: false
+        type: string
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+env:
+  APP_NAME: UniversalSonyLANCRemote
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  preflight-tests:
+    name: Preflight tests
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          set -eux
+          python -m pip install --upgrade pip
+          python -m pip install -r GUI_PyQt6/requirements.txt
+
+      - name: Run headless tests
+        run: |
+          set -eux
+          QT_QPA_PLATFORM=offscreen python GUI_PyQt6/test_headless.py
+
+  linux-binary:
+    name: Linux self-contained binary (x86_64)
+    runs-on: ubuntu-22.04
+    needs:
+      - preflight-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Resolve build version
+        id: version
+        run: |
+          set -eux
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.release_tag }}" ]]; then
+            VERSION="${{ github.event.inputs.release_tag }}"
+          else
+            VERSION="$(git describe --tags --dirty --match 'v*' 2>/dev/null || true)"
+            if [[ -z "$VERSION" ]]; then
+              VERSION="dev-${GITHUB_SHA::7}"
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: |
+          set -eux
+          python -m pip install --upgrade pip
+          python -m pip install -r GUI_PyQt6/requirements.txt pyinstaller
+
+      - name: Build Linux binary (PyInstaller onefile)
+        run: |
+          set -eux
+          cd GUI_PyQt6
+          pyinstaller --noconfirm --clean --onefile --windowed --name "$APP_NAME" sony_lanc_remote.py
+          test -f "dist/$APP_NAME"
+
+      - name: Package Linux ZIP
+        run: |
+          set -eux
+          ZIP_NAME="linux_UniversalSonyLANCRemote_${{ steps.version.outputs.version }}_x86.zip"
+          zip -j "$ZIP_NAME" "GUI_PyQt6/dist/$APP_NAME"
+          test -f "$ZIP_NAME"
+
+      - name: Upload Linux ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-binary
+          path: linux_UniversalSonyLANCRemote_*_x86.zip
+          if-no-files-found: error
+
+  windows-exe:
+    name: Windows self-contained EXE (x86_64)
+    runs-on: windows-2022
+    needs:
+      - preflight-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Resolve build version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${env:GITHUB_REF}" -like "refs/tags/*") {
+            $version = "${env:GITHUB_REF}".Substring("refs/tags/".Length)
+          } elseif ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.release_tag }}") {
+            $version = "${{ github.event.inputs.release_tag }}"
+          } else {
+            $version = (git describe --tags --dirty --match "v*" 2>$null)
+            if (-not $version) {
+              $version = "dev-$($env:GITHUB_SHA.Substring(0,7))"
+            }
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Install build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r GUI_PyQt6/requirements.txt pyinstaller
+
+      - name: Build Windows EXE (PyInstaller onefile)
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          pyinstaller --noconfirm --clean --onefile --windowed --name "$env:APP_NAME" GUI_PyQt6/sony_lanc_remote.py
+          if (-not (Test-Path "dist/$env:APP_NAME.exe")) {
+            throw "Expected dist/$env:APP_NAME.exe"
+          }
+
+      - name: Package Windows ZIP
+        shell: pwsh
+        run: |
+          $zipPath = "windows_UniversalSonyLANCRemote_${{ steps.version.outputs.version }}_x86.zip"
+          Compress-Archive -Path @("dist/$env:APP_NAME.exe") -DestinationPath $zipPath -Force
+          if (-not (Test-Path $zipPath)) { throw "ZIP not created: $zipPath" }
+
+      - name: Upload Windows ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-exe
+          path: windows_UniversalSonyLANCRemote_*_x86.zip
+          if-no-files-found: error
+
+  macos-app:
+    name: macOS self-contained app bundle (arm64)
+    runs-on: macos-14
+    needs:
+      - preflight-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Resolve build version
+        id: version
+        run: |
+          set -eux
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.release_tag }}" ]]; then
+            VERSION="${{ github.event.inputs.release_tag }}"
+          else
+            VERSION="$(git describe --tags --dirty --match 'v*' 2>/dev/null || true)"
+            if [[ -z "$VERSION" ]]; then
+              VERSION="dev-${GITHUB_SHA::7}"
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: |
+          set -eux
+          python -m pip install --upgrade pip
+          python -m pip install -r GUI_PyQt6/requirements.txt pyinstaller
+
+      - name: Build macOS app bundle (PyInstaller onedir)
+        run: |
+          set -eux
+          cd GUI_PyQt6
+          pyinstaller --noconfirm --clean --windowed --onedir --name "$APP_NAME" sony_lanc_remote.py
+          test -d "dist/$APP_NAME.app"
+
+      - name: Package macOS ZIP
+        run: |
+          set -eux
+          ZIP_NAME="macos_UniversalSonyLANCRemote_${{ steps.version.outputs.version }}_arm64.zip"
+          ditto -c -k --sequesterRsrc --keepParent "GUI_PyQt6/dist/$APP_NAME.app" "$ZIP_NAME"
+          test -f "$ZIP_NAME"
+
+      - name: Upload macOS ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-app
+          path: macos_UniversalSonyLANCRemote_*_arm64.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish release assets
+    runs-on: ubuntu-24.04
+    needs:
+      - linux-binary
+      - windows-exe
+      - macos-app
+    if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          set -eux
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="${{ github.event.inputs.release_tag }}"
+            if [[ -z "$TAG" ]]; then
+              echo "release_tag is required when create_release=true" >&2
+              exit 1
+            fi
+            if ! git rev-parse "refs/tags/$TAG" >/dev/null 2>&1; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git tag "$TAG" "$GITHUB_SHA"
+              git push origin "$TAG"
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            release-assets/**/linux_UniversalSonyLANCRemote_*_x86.zip
+            release-assets/**/windows_UniversalSonyLANCRemote_*_x86.zip
+            release-assets/**/macos_UniversalSonyLANCRemote_*_arm64.zip

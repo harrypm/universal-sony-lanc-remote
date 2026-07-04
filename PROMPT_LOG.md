@@ -535,3 +535,30 @@ Validation:
 - `python3 -m py_compile sony_lanc_remote.py test_headless.py lanc_serial_worker.py lanc_protocol.py`
 - `QT_QPA_PLATFORM=offscreen python3 test_headless.py`
   - Result: **ALL CHECKS PASSED** after keypad contrast rollback + layout-focused update.
+
+### CI/CD pass: add cross-platform self-contained binary GitHub Actions workflow (MISRC-style)
+
+User request:
+- \"add gh actions workflow, mirror what MISRC has for making self contained binary releases cross platform\"
+
+Changes:
+- Added workflow file:
+  - `.github/workflows/build.yml`
+- Workflow structure mirrors MISRC release flow pattern:
+  - triggers: `workflow_dispatch` (with `create_release` + `release_tag`),
+    PR events, and tag pushes (`v*`),
+  - artifact build jobs for Linux/Windows/macOS,
+  - release job gated on tag push or manual dispatch with release flag.
+- Packaging adapted to this Python/PyQt project:
+  - Linux: PyInstaller `--onefile` binary zipped,
+  - Windows: PyInstaller `--onefile` EXE zipped,
+  - macOS: PyInstaller `.app` bundle zipped.
+- Release publishing:
+  - downloads build artifacts and publishes them via
+    `softprops/action-gh-release@v3` using resolved release tag logic modeled
+    after MISRC’s workflow.
+
+Validation:
+- Workflow YAML parse check:
+  - `ruby -e 'require \"yaml\"; YAML.load_file(\".github/workflows/build.yml\"); puts \"YAML_OK\"'`
+  - Result: `YAML_OK`

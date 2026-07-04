@@ -122,7 +122,7 @@ jobs:
 
   linux-binary-arm:
     name: Linux self-contained binary (arm64)
-    runs-on: ubuntu-22.04-arm
+    runs-on: ubuntu-24.04-arm
     needs:
       - preflight-tests
     steps:

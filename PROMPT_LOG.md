@@ -614,7 +614,7 @@ Fixes applied in `.github/workflows/build.yml`:
   - explicitly set `$PSNativeCommandUseErrorActionPreference = $false` in both Windows resolve-version steps so `git describe` non-zero does not terminate the step before fallback logic runs.
   - switched output write from `Out-File` to `Add-Content` for `$env:GITHUB_OUTPUT` and force-reset `$global:LASTEXITCODE = 0` before step exit.
 - Added missing architecture jobs:
-  - `linux-binary-arm` on `ubuntu-22.04-arm`, artifact `linux_SonyLANCRemote_*_arm64.zip`
+  - `linux-binary-arm` on `ubuntu-24.04-arm`, artifact `linux_SonyLANCRemote_*_arm64.zip`
   - `windows-exe-arm` on `windows-11-arm`, artifact `windows_SonyLANCRemote_*_arm64.zip`
   - `macos-app-x86` on `macos-15-intel`, artifact `macos_SonyLANCRemote_*_x86.zip`
 - Updated release aggregation:

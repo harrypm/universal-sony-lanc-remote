@@ -13,10 +13,11 @@ Run:
     python3 sony_lanc_remote.py
 """
 
+import os
 import sys
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGroupBox, QGridLayout, QVBoxLayout,
     QHBoxLayout, QPushButton, QLabel, QComboBox, QLineEdit, QPlainTextEdit,
@@ -102,6 +103,14 @@ ICON_TRANSPORT = [
 ]
 
 
+def resource_path(*parts: str) -> str:
+    """Return an absolute path to a bundled/runtime resource."""
+    base_dir = getattr(sys, "_MEIPASS", None)
+    if base_dir is None:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_dir, *parts)
+
+
 class PortDialog(QDialog):
     """Startup prompt to select the Arduino's serial port."""
 
@@ -166,6 +175,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Sony LANC remote (PyQt6 port)")
+        self._set_window_icon()
         self.resize(767, 473)
         self.setMinimumSize(640, 400)
 
@@ -194,6 +204,13 @@ class MainWindow(QMainWindow):
         self._apply_compact_theme()
 
         self._build_ui()
+
+    def _set_window_icon(self):
+        icon_path = resource_path("assets", "lanc_remote.png")
+        if os.path.exists(icon_path):
+            icon = QIcon(icon_path)
+            if not icon.isNull():
+                self.setWindowIcon(icon)
 
     # ------------------------------------------------------------------ UI
     def _apply_compact_theme(self):
@@ -713,6 +730,11 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app_icon_path = resource_path("assets", "lanc_remote.png")
+    if os.path.exists(app_icon_path):
+        app_icon = QIcon(app_icon_path)
+        if not app_icon.isNull():
+            app.setWindowIcon(app_icon)
     win = MainWindow()
     win.show()
     # Startup port prompt (matches the original GUI's behaviour).

@@ -562,3 +562,38 @@ Validation:
 - Workflow YAML parse check:
   - `ruby -e 'require \"yaml\"; YAML.load_file(\".github/workflows/build.yml\"); puts \"YAML_OK\"'`
   - Result: `YAML_OK`
+
+### Icon integration + docs accuracy pass
+
+User request:
+- "commit push, then find the LANC icon and make that the icon for the apps"
+- "fix repo docs to be accurate also"
+
+Actions:
+- Added runtime icon loading in `GUI_PyQt6/sony_lanc_remote.py`:
+  - app-level icon and window-level icon are now set from `assets/lanc_remote.png`.
+  - added `resource_path(...)` helper for both source runs and PyInstaller onefile/onedir (`sys._MEIPASS`) runs.
+- Updated CI packaging in `.github/workflows/build.yml`:
+  - Linux build now bundles runtime icon data:
+    - `--add-data "assets/lanc_remote.png:assets"`
+  - Windows build now applies executable icon + bundles runtime icon data:
+    - `--icon GUI_PyQt6/assets/lanc_remote.ico`
+    - `--add-data "GUI_PyQt6/assets/lanc_remote.png;assets"`
+  - macOS build now applies app-bundle icon + bundles runtime icon data:
+    - `--icon assets/lanc_remote.icns`
+    - `--add-data "assets/lanc_remote.png:assets"`
+- Updated docs for current repository state:
+  - `README.md` now documents PyQt6 GUI as current, icon assets, workflow behavior, and LabVIEW as legacy/archival.
+  - `GUI_PyQt6/README.md` now documents current tabbed UI, icon asset usage, and release workflow behavior.
+
+Validation commands:
+- `python3 -m py_compile /home/harry/LANC-USB-GUI/GUI_PyQt6/sony_lanc_remote.py /home/harry/LANC-USB-GUI/GUI_PyQt6/test_headless.py /home/harry/LANC-USB-GUI/GUI_PyQt6/lanc_serial_worker.py /home/harry/LANC-USB-GUI/GUI_PyQt6/lanc_protocol.py`
+  - Result: success (no compile errors).
+- `QT_QPA_PLATFORM=offscreen python3 /home/harry/LANC-USB-GUI/GUI_PyQt6/test_headless.py`
+  - Result: `RESULT: ALL CHECKS PASSED`.
+- `ruby -e 'require "yaml"; YAML.load_file("/home/harry/LANC-USB-GUI/.github/workflows/build.yml"); puts "YAML_OK"'`
+  - Result: `YAML_OK`.
+
+Working tree snapshot after edits:
+- Modified: `.github/workflows/build.yml`, `README.md`, `GUI_PyQt6/README.md`, `GUI_PyQt6/sony_lanc_remote.py`, `PROMPT_LOG.md`
+- New: `GUI_PyQt6/assets/lanc_remote.ico`, `GUI_PyQt6/assets/lanc_remote.icns`, `GUI_PyQt6/assets/lanc_remote.png`

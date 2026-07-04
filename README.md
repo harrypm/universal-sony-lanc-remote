@@ -30,16 +30,43 @@ The code follows the [protocol documentation](http://www.boehmel.de/lanc.htm) an
 - The background functions provided by the Arduino transparently to the user (such as timers) make use of interrupts and introduce unpredictable ~10µs jitter a few percent of the time. Interrupts are disabled in the new code during the critical bit-banging period, elimitating all timing jitter.
 - The LANC command from the user is read over the serial port between the LANC frames. A command consists of 2 bytes formatted as hex characters (i.e., 4 ASCII characters representing hex digits) followed by a line feed.
 
-## Remote emulator GUI
+## Remote emulator GUI (current: PyQt6)
 
+The actively maintained GUI in this repository is the Python/PyQt6 app in `GUI_PyQt6/`.
+
+Run it with:
+
+`python3 GUI_PyQt6/sony_lanc_remote.py`
+
+Current UI layout:
+- `Deck` tab (transport controls + quick transport strip)
+- `Camera` tab (camera controls)
+- `Log` tab (separate live log output)
+
+It includes status/timecode decode, advanced command dropdown, manual 4-hex-character command input, and RM-95 style service/EEPROM controls.
+
+### Icon assets
+
+App icons are stored in `GUI_PyQt6/assets/`:
+- `lanc_remote.ico` (Windows EXE icon)
+- `lanc_remote.icns` (macOS app icon)
+- `lanc_remote.png` (runtime app/window icon)
+
+These icon assets were extracted/derived from the original upstream Windows release executable and are used by the PyQt6 app and packaging workflow.
+
+### Self-contained binary releases
+
+GitHub Actions workflow: `.github/workflows/build.yml`
+
+It:
+- runs headless preflight tests,
+- builds Linux/Windows/macOS self-contained binaries with PyInstaller,
+- applies the icon files above during packaging,
+- publishes release artifacts on tag pushes (`v*`) or manual dispatch when release creation is enabled.
+
+## Legacy LabVIEW GUI (archival)
+
+The original LabVIEW implementation remains in `GUI/` as legacy source/reference.
+
+Legacy screenshot:
 ![Image](https://user-images.githubusercontent.com/13183195/238098564-2eec6d55-677c-4667-8e20-94b751ad3fd1.png)
-
-The GUI software `Sony LANC remote.vi` mimics some basic functions of a wired remote (such as the RM-95) including EEPROM read/write functions of a service remote and monitoring of camera status and time codes. The implementation follows roughly the available [documentation](http://www.boehmel.de/lanc.htm) and advanced commands can be sent through the drop-down menu or a command code can be entered manually as 4 hexadecimal characters (2 bytes). The LANC interface (including EEPROM functions) is completely exposed, so use at your own risk! More functions can be explicitly implemented in the future if the documentation becomes available.
-
-### Requirements
-
-The GUI software is written in National Instruments Labview 2023, which requires the development environment (including NI-VISA or NI-Serial) to view and edit the source code. A [compiled executable](https://github.com/Novgorod/LANC-USB-GUI/releases/tag/v1.0.1.0) is available for Windows (under Releases), which requires the free [Labview Runtime Engine 2023](https://download.ni.com/support/nipkg/products/ni-l/ni-labview-2023-runtime-engine-x86/23.1/online/ni-labview-2023-runtime-engine-x86_23.1_online.exe) and [NI-Serial Runtime 23.3](https://download.ni.com/support/nipkg/products/ni-s/ni-serial/23.3/online/ni-serial_23.3_online.exe) or later.
-
-### Usage
-
-Run the .vi or the compiled executable with the Arduino connected to the PC and the (active) LANC device. Select the Arduino's COM port in the prompt at startup and click Ok. Once the GUI is connected and showing the camera status, you can send commands with the buttons, from the drop-down menu or as manual hexadecimal input. Note that the forward/rewind buttons can be used for forward/backward seek when held down during playback.

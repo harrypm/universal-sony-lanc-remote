@@ -93,7 +93,7 @@ jobs:
         run: |
           set -eux
           cd GUI_PyQt6
-          pyinstaller --noconfirm --clean --onefile --windowed --name "$APP_NAME" sony_lanc_remote.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name "$APP_NAME" --add-data "assets/lanc_remote.png:assets" sony_lanc_remote.py
           test -f "dist/$APP_NAME"
 
       - name: Package Linux ZIP
@@ -150,7 +150,7 @@ jobs:
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
-          pyinstaller --noconfirm --clean --onefile --windowed --name "$env:APP_NAME" GUI_PyQt6/sony_lanc_remote.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name "$env:APP_NAME" --icon GUI_PyQt6/assets/lanc_remote.ico --add-data "GUI_PyQt6/assets/lanc_remote.png;assets" GUI_PyQt6/sony_lanc_remote.py
           if (-not (Test-Path "dist/$env:APP_NAME.exe")) {
             throw "Expected dist/$env:APP_NAME.exe"
           }
@@ -209,7 +209,7 @@ jobs:
         run: |
           set -eux
           cd GUI_PyQt6
-          pyinstaller --noconfirm --clean --windowed --onedir --name "$APP_NAME" sony_lanc_remote.py
+          pyinstaller --noconfirm --clean --windowed --onedir --name "$APP_NAME" --icon assets/lanc_remote.icns --add-data "assets/lanc_remote.png:assets" sony_lanc_remote.py
           test -d "dist/$APP_NAME.app"
 
       - name: Package macOS ZIP

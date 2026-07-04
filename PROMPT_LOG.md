@@ -594,6 +594,37 @@ Validation commands:
 - `ruby -e 'require "yaml"; YAML.load_file("/home/harry/LANC-USB-GUI/.github/workflows/build.yml"); puts "YAML_OK"'`
   - Result: `YAML_OK`.
 
+### CI fix pass: GitHub Actions preflight headless tests failing
+
+User report:
+- `https://github.com/harrypm/universal-sony-lanc-remote/actions/runs/28710688434/job/85143599984 - builds fail`
+
+Investigation:
+- Fetched run metadata and failed logs for run `28710688434` / job `85143599984`.
+- Failure occurred in `Preflight tests -> Run headless tests`.
+- Exact error from log:
+  - `ImportError: libEGL.so.1: cannot open shared object file: No such file or directory`
+
+Root cause:
+- Ubuntu GitHub runner in the preflight path lacked required Qt runtime EGL/OpenGL shared libraries before importing PyQt6.
+
+Fix applied:
+- Updated `.github/workflows/build.yml` to install Linux Qt runtime libs in Ubuntu jobs before Python dependency install/test/build:
+  - Added step `Install Linux Qt runtime libraries` with:
+    - `sudo apt-get update`
+    - `sudo apt-get install -y libegl1 libopengl0`
+- Applied to:
+  - `preflight-tests` job
+  - `linux-binary` job
+
+Validation:
+- `ruby -e 'require "yaml"; YAML.load_file("/home/harry/LANC-USB-GUI/.github/workflows/build.yml"); puts "YAML_OK"'`
+  - Result: `YAML_OK`.
+- `QT_QPA_PLATFORM=offscreen python3 /home/harry/LANC-USB-GUI/GUI_PyQt6/test_headless.py`
+  - Result: `RESULT: ALL CHECKS PASSED`.
+- `git --no-pager -C /home/harry/LANC-USB-GUI diff -- .github/workflows/build.yml`
+  - Result: diff contains only the two inserted Linux runtime dependency steps.
+
 ### Startup connection popup removal pass
 
 User request:

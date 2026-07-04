@@ -210,12 +210,14 @@ jobs:
             $version = (git describe --tags --dirty --match "v*" 2>$null)
             if ($LASTEXITCODE -ne 0) {
               $version = $null
+              $global:LASTEXITCODE = 0
             }
             if (-not $version) {
               $version = "dev-$($env:GITHUB_SHA.Substring(0,7))"
             }
           }
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
+          $global:LASTEXITCODE = 0
 
       - name: Install build dependencies
         shell: pwsh
@@ -275,12 +277,14 @@ jobs:
             $version = (git describe --tags --dirty --match "v*" 2>$null)
             if ($LASTEXITCODE -ne 0) {
               $version = $null
+              $global:LASTEXITCODE = 0
             }
             if (-not $version) {
               $version = "dev-$($env:GITHUB_SHA.Substring(0,7))"
             }
           }
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$version"
+          $global:LASTEXITCODE = 0
 
       - name: Install build dependencies
         shell: pwsh

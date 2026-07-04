@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sony LANC remote - PyQt6 port of the LabVIEW 'Sony LANC remote.vi'.
+"""Sony LANC Remote - PyQt6 port of the LabVIEW 'Sony LANC remote.vi'.
 
 A GUI that talks to the Arduino LANC-to-USB-serial interface
 (arduino_lanc_nano-every.ino) over a serial port at 115200 baud.  It monitors
@@ -21,7 +21,7 @@ from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGroupBox, QGridLayout, QVBoxLayout,
     QHBoxLayout, QPushButton, QLabel, QComboBox, QLineEdit, QPlainTextEdit,
-    QDialog, QDialogButtonBox, QMessageBox, QSizePolicy, QTabWidget,
+    QMessageBox, QSizePolicy, QTabWidget,
 )
 
 import lanc_protocol as lp
@@ -111,70 +111,10 @@ def resource_path(*parts: str) -> str:
     return os.path.join(base_dir, *parts)
 
 
-class PortDialog(QDialog):
-    """Startup prompt to select the Arduino's serial port."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Select Arduino COM port")
-        self.setMinimumWidth(420)
-        self.selected_port = None
-
-        v = QVBoxLayout(self)
-        v.addWidget(QLabel("Select the Arduino Nano Every's serial port:"))
-
-        self.combo = QComboBox()
-        self.combo.setEditable(True)
-        self.refresh()
-        v.addWidget(self.combo)
-
-        ref = QPushButton("Refresh")
-        ref.clicked.connect(self.refresh)
-        v.addWidget(ref)
-
-        v.addWidget(QLabel(f"Fixed serial settings: {lp.BAUDRATE} baud, 8N1, no flow control"))
-
-        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok |
-                              QDialogButtonBox.StandardButton.Cancel)
-        bb.accepted.connect(self.accept)
-        bb.rejected.connect(self.reject)
-        v.addWidget(bb)
-
-    def refresh(self):
-        prev = self.combo.currentText().strip()
-        self.combo.clear()
-        ports = list_serial_ports()
-        if not ports:
-            self.combo.addItem("(no ports found)")
-            self.combo.setEnabled(False)
-            return
-        self.combo.setEnabled(True)
-        for dev, desc, hwid in ports:
-            self.combo.addItem(f"{dev}  -  {desc}", dev)
-        # restore previous selection if still present
-        if prev:
-            for i in range(self.combo.count()):
-                if self.combo.itemData(i) == prev or self.combo.itemText(i).startswith(prev):
-                    self.combo.setCurrentIndex(i)
-                    break
-
-    def accept(self):
-        idx = self.combo.currentIndex()
-        data = self.combo.itemData(idx)
-        if data is None:
-            # editable text fallback
-            data = self.combo.currentText().split(" ")[0].strip()
-        if not data:
-            QMessageBox.warning(self, "No port", "Please select a port.")
-            return
-        self.selected_port = data
-        super().accept()
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Sony LANC remote (PyQt6 port)")
+        self.setWindowTitle("Sony LANC Remote")
         self._set_window_icon()
         self.resize(767, 473)
         self.setMinimumSize(640, 400)
@@ -730,6 +670,8 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app.setApplicationName("Sony LANC Remote")
+    app.setApplicationDisplayName("Sony LANC Remote")
     app_icon_path = resource_path("assets", "lanc_remote.png")
     if os.path.exists(app_icon_path):
         app_icon = QIcon(app_icon_path)
@@ -737,10 +679,6 @@ def main():
             app.setWindowIcon(app_icon)
     win = MainWindow()
     win.show()
-    # Startup port prompt (matches the original GUI's behaviour).
-    dlg = PortDialog(win)
-    if dlg.exec() == QDialog.DialogCode.Accepted and dlg.selected_port:
-        win.worker.open_port(dlg.selected_port)
     app.exec()
 
 

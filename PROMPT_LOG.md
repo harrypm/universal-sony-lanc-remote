@@ -594,6 +594,80 @@ Validation commands:
 - `ruby -e 'require "yaml"; YAML.load_file("/home/harry/LANC-USB-GUI/.github/workflows/build.yml"); puts "YAML_OK"'`
   - Result: `YAML_OK`.
 
+### Startup connection popup removal pass
+
+User request:
+- "Remove coonnection popup window, as its redundent"
+
+Actions:
+- Removed the startup popup flow from `GUI_PyQt6/sony_lanc_remote.py`:
+  - deleted `PortDialog` class and related imports (`QDialog`, `QDialogButtonBox`).
+  - removed popup invocation from `main()` so app now opens directly to main window.
+- Kept existing in-window serial controls (`Port` dropdown + `Connect` button) unchanged.
+- Updated `GUI_PyQt6/README.md` run instructions:
+  - replaced startup-dialog step with selecting port in top bar and clicking `Connect`.
+
+Validation commands:
+- `git --no-pager -C /home/harry/LANC-USB-GUI grep -n -E "class PortDialog|QDialogButtonBox|startup dialog|Startup port prompt" -- GUI_PyQt6/sony_lanc_remote.py GUI_PyQt6/README.md || true`
+  - Result: no matches.
+- `python3 -m py_compile /home/harry/LANC-USB-GUI/GUI_PyQt6/sony_lanc_remote.py /home/harry/LANC-USB-GUI/GUI_PyQt6/test_headless.py /home/harry/LANC-USB-GUI/GUI_PyQt6/lanc_serial_worker.py /home/harry/LANC-USB-GUI/GUI_PyQt6/lanc_protocol.py`
+  - Result: success (no compile errors).
+- `QT_QPA_PLATFORM=offscreen python3 /home/harry/LANC-USB-GUI/GUI_PyQt6/test_headless.py`
+  - Result: `RESULT: ALL CHECKS PASSED`.
+
+### Local AppImage rebuild after name cleanup
+
+Purpose:
+- Ensure local test artifact naming and desktop metadata reflect `Sony LANC Remote` after code/workflow rename.
+
+Actions:
+- Removed old local build artifacts from prior `Universal...` AppImage build.
+- Rebuilt onefile binary with PyInstaller:
+  - `--name "SonyLANCRemote"`
+- Recreated AppDir as `GUI_PyQt6/SonyLANCRemote.AppDir` with desktop entry:
+  - `Name=Sony LANC Remote`
+  - `Exec=SonyLANCRemote`
+  - `Icon=sony-lanc-remote`
+- Packaged new AppImage:
+  - `SonyLANCRemote-linux-x86_64.AppImage`
+
+Validation:
+- `ls -lh /home/harry/LANC-USB-GUI/SonyLANCRemote-linux-x86_64.AppImage`
+  - Result: AppImage created successfully (~56M, executable).
+
 Working tree snapshot after edits:
 - Modified: `.github/workflows/build.yml`, `README.md`, `GUI_PyQt6/README.md`, `GUI_PyQt6/sony_lanc_remote.py`, `PROMPT_LOG.md`
 - New: `GUI_PyQt6/assets/lanc_remote.ico`, `GUI_PyQt6/assets/lanc_remote.icns`, `GUI_PyQt6/assets/lanc_remote.png`
+
+### App name cleanup pass: Sony LANC Remote
+
+User request:
+- "cleanup app name to be just \"Sony LANC Remote\""
+
+Actions:
+- Updated runtime app naming in `GUI_PyQt6/sony_lanc_remote.py`:
+  - main window title changed to `Sony LANC Remote`.
+  - added explicit Qt app metadata:
+    - `app.setApplicationName("Sony LANC Remote")`
+    - `app.setApplicationDisplayName("Sony LANC Remote")`
+- Updated build/release naming in `.github/workflows/build.yml`:
+  - executable base name changed:
+    - `APP_NAME: UniversalSonyLANCRemote -> SonyLANCRemote`
+  - release ZIP naming updated to remove `Universal`:
+    - `linux_SonyLANCRemote_*_x86.zip`
+    - `windows_SonyLANCRemote_*_x86.zip`
+    - `macos_SonyLANCRemote_*_arm64.zip`
+  - release asset glob patterns updated to the same new names.
+- Normalized docs/comments casing:
+  - `GUI_PyQt6/README.md` title now `Sony LANC Remote GUI - PyQt6 port`.
+  - `GUI_PyQt6/requirements.txt` comment now says `Sony LANC Remote GUI`.
+
+Validation commands:
+- `git --no-pager -C /home/harry/LANC-USB-GUI grep -n -E "UniversalSonyLANCRemote|Universal Sony LANC Remote|Sony LANC remote \\(PyQt6 port\\)" || true`
+  - Result: no matches in tracked files.
+- `python3 -m py_compile /home/harry/LANC-USB-GUI/GUI_PyQt6/sony_lanc_remote.py /home/harry/LANC-USB-GUI/GUI_PyQt6/test_headless.py /home/harry/LANC-USB-GUI/GUI_PyQt6/lanc_serial_worker.py /home/harry/LANC-USB-GUI/GUI_PyQt6/lanc_protocol.py`
+  - Result: success (no compile errors).
+- `QT_QPA_PLATFORM=offscreen python3 /home/harry/LANC-USB-GUI/GUI_PyQt6/test_headless.py`
+  - Result: `RESULT: ALL CHECKS PASSED`.
+- `ruby -e 'require "yaml"; YAML.load_file("/home/harry/LANC-USB-GUI/.github/workflows/build.yml"); puts "YAML_OK"'`
+  - Result: `YAML_OK`.

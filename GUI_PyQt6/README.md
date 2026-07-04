@@ -1,4 +1,4 @@
-# Sony LANC remote GUI - PyQt6 port
+# Sony LANC Remote GUI - PyQt6 port
 A Python/PyQt6 implementation of the Sony LANC service-remote GUI. It talks to the Arduino LANC-to-USB-serial sketch (`../Arduino/arduino_lanc_nano-every.ino`) and provides transport/camera control, advanced command send, manual hex commands, status/timecode decode, and RM-95 style service/EEPROM controls.
 
 ## Files
@@ -23,7 +23,7 @@ Install:
 1. Flash `../Arduino/arduino_lanc_nano-every.ino` to the Arduino Nano Every and connect the hardware.
 2. Start the GUI:
    `python3 sony_lanc_remote.py`
-3. Pick the serial port in the startup dialog.
+3. Pick the serial port from the top bar in the main window and click `Connect`.
 
 The UI is currently organized into three tabs:
 - `Deck` (transport controls + quick transport strip)

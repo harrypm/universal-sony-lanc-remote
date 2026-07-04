@@ -1,0 +1,4 @@
+# Python dependencies for the PyQt6 port of the Sony LANC remote GUI.
+# Install with:  pip3 install --user -r requirements.txt
+PyQt6>=6.4
+pyserial>=3.5
